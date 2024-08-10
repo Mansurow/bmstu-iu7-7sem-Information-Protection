@@ -1,0 +1,135 @@
+\chapter{Технологическая часть}
+
+\section{Средства реализации}
+
+Для программной реализации шифровальной машины был выбран язык C++ \cite{cpp}.
+В данном языке есть все требующиеся инструменты для данной лабораторной работы.
+В качестве среды разработки была выбрана среда CLion \cite{clion}.
+
+\section{Реализация алгоритма}
+
+\begin{lstlisting}[label=lst:CFB,caption=Класс реализации режима CFB]
+class cfb {
+	public:
+	explicit cfb (const vector<uint8_t>& vi);
+	
+	string crypt(string message, bool decrypt = false);
+	
+	vector<block> divideBlocks(const vector<uint8_t> &message);
+	vector<uint8_t> mergeBlocks(const vector<block> &blocks);
+	
+	vector<uint8_t> encrypt(vector<uint8_t>& block128, const vector<uint8_t>& key);
+	vector<uint8_t> decrypt(vector<uint8_t>& block128, const vector<uint8_t>& key);
+	
+	void setVI(const vector<uint8_t>& vi);
+	
+	void print_bloks(const vector<block> &blocks);
+	void print_message(const vector<uint8_t> message);
+};
+\end{lstlisting}
+
+
+\clearpage
+
+\begin{lstlisting}[label=lst:aes,caption=Класс шифрования и дешифрования AES]
+class aes: public IEncoder{
+	public:
+	block CryptBlock(const block& block128, const key& key128, bool decrypter = false);
+	block EncryptBlock(const block& block128, const key& key128) override;
+	block DecryptBlock(const block& block128, const key& key128) override;
+	
+	vector<key> GetKeys128(key key128, bool decrypter = false);
+	void AddRoundKey(mtx& block, const key& roundKey);
+	void SubBytes(mtx& block);
+	void InvSubBytes(mtx& block);
+	void ShiftRows(mtx& block);
+	void InvShiftRows(mtx& block);
+	void MixColumns(mtx& block);
+	void InvMixColumns(mtx& block);
+	
+	mtx ArrayToMrx4x4(const block& block);
+	block Mrx4x4ToArray(const mtx &mtx);
+	void AddPadding(vector<uint8_t>& data);
+	void RemovePadding(vector<uint8_t>& data);
+	private:
+	// Уожение поля Галуа
+	uint8_t GMul(uint8_t x, uint8_t y);
+	
+	AES_MODE mode = AES128;
+}
+\end{lstlisting}
+
+\clearpage
+
+\begin{lstlisting}[label=lst:AES-m,caption=Реализация алгоритма AES]
+block aes::EncryptBlock(const block &block128, const key &key128) {
+	// Расширение ключа - KeyExpansion
+	auto keys = GetKeys128(key128, false);
+	
+	// для удобства конвертируем в матрицу
+	auto state = ArrayToMrx4x4(block128);
+	
+	// Начальный раунд - сложение с основным ключом;
+	AddRoundKey(state, keys[0]);
+	
+	// 9 раундов шифрования
+	for (int i = 1; i < 10; i++)
+	{
+		SubBytes(state);
+		ShiftRows(state);
+		MixColumns(state);
+		AddRoundKey(state, keys[i]);
+	}
+	
+	// Финальный раунд
+	SubBytes(state);
+	ShiftRows(state);
+	AddRoundKey(state, keys[10]);
+	
+	return Mrx4x4ToArray(state);
+}
+\end{lstlisting}
+
+
+\section{Тестирование}
+
+Тестирование разработанной программы производилось следующим образом: выбирались случайные значения ключа и вектора IV, а также получалась случайная последовательность блоков для шифрования длиной $n$. Она зашифровывалась и расшифровывалась, проверялось совпадение полученного результата с начальными данными. Данная процедура повторялась $n$ раз для значений $n$ от 1 до 100.
+
+\begin{table}[h]
+	\begin{center}
+		\begin{threeparttable}
+			\captionsetup{justification=raggedright,singlelinecheck=off}
+			\caption{\label{tbl:functional_test} Функциональные тесты}
+			\begin{tabular}{|c@{\hspace{7mm}}|c@{\hspace{7mm}}|c@{\hspace{7mm}}|c@{\hspace{7mm}}|c@{\hspace{7mm}}|c@{\hspace{7mm}}|}
+				\hline
+				Длина, байты & Шифруемое значение & Результат работы \\ 
+				\hline
+				
+				8 &
+				12345678 &
+				ҐЯЄ}70ЌЗ \\ \hline
+				16 & 1234567812345678 &
+				\begin{tabular}{c}
+					ҐЯЄ}70ЌЗРx~¬6@‚\\
+				\end{tabular}   \\ \hline
+				
+				32 &
+				\begin{tabular}{c}
+					1234567812345678\\
+					1234567812345678
+				\end{tabular} &
+				\begin{tabular}{c}
+					ҐЯЄ}70ЌЗРx~¬6@‚\\
+					vќ F°qћЎѕђGZд/\$
+				\end{tabular} \\ \hline
+				
+			\end{tabular}
+		\end{threeparttable}
+	\end{center}
+	
+\end{table}
+
+
+\section*{Вывод}
+
+В данном разделе были рассмотрены средства реализации, а также представлены листинги реализации шифровального алгоритма AES и режима работы CFB,  произведено тестирование.

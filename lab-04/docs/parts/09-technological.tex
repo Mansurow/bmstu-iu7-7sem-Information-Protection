@@ -1,0 +1,41 @@
+\chapter{Технологическая часть}
+
+\section{Средства реализации}
+
+Для программной реализации шифровальной машины был выбран язык C++ \cite{cpp}.
+В данном языке есть все требующиеся инструменты для данной лабораторной работы.
+В качестве среды разработки была выбрана среда CLion \cite{clion}.
+
+\section{Реализация алгоритма}
+
+\begin{lstlisting}[label=lst:aes,caption=Генерация ключей RSA]
+std::pair<PrivateKey, PublicKey> RSA::genPublicAndSecretKeys(int64_t min_value, int64_t max_value) {
+	auto [p, q] = genPQSimple(min_value, max_value);
+	
+	int64_t N = p * q;
+	
+	int64_t euler = (p - 1) * (q - 1);
+	
+	std::mt19937 generator(std::random_device{}());
+	std::uniform_int_distribution<std::int64_t> distribution(2, euler - 1);
+	
+	int64_t e = distribution(generator);
+	while (gcd(e, euler) != 1) {
+		e = distribution(generator);
+	}
+	
+	int64_t d = std::get<1>(extendet_efclid_alg(e, euler));
+	if (d < 0) {
+		d += euler;
+	}
+	
+	return {
+		PrivateKey{
+			d, N
+		},
+		PublicKey{
+			e, N
+		}
+	};
+}
+\end{lstlisting}

@@ -1,0 +1,232 @@
+\chapter{Технологическая часть}
+
+\section{Средства реализации}
+
+Для программной реализации шифровальной машины был выбран язык C++ \cite{cpp}.
+В данном языке есть все требующиеся инструменты для данной лабораторной работы.
+В качестве среды разработки была выбрана среда CLion \cite{clion}.
+
+\section{Реализация алгоритма}
+
+\begin{lstlisting}[label=lst:enigma:reflactor,caption=Класс рефлектора]
+class Reflector {
+public:
+	explicit Reflector();
+	explicit Reflector(const std::vector<uint8_t>& config);
+	explicit Reflector(const std::string& config);
+	
+	uint8_t reflect(uint8_t symbol);
+	void printf_config();
+private:
+	std::vector<uint8_t> _config;
+};
+
+Reflector::Reflector(const std::vector<uint8_t>& config): _config(config) {}
+
+uint8_t Reflector::reflect(uint8_t symbol) {
+	return _config[symbol];
+}
+\end{lstlisting}
+
+\clearpage
+
+\begin{lstlisting}[label=lst:enigma:rotor,caption=Класс ротора]
+class Rotor {
+public:
+	explicit Rotor(const std::vector<uint8_t>& wiring);
+	
+	uint8_t encrypt_left(uint8_t symbol);
+	uint8_t encrypt_right(uint8_t symbol);
+	
+	void set_position(uint8_t position);
+	void reset_position();
+	void rotate();
+private:
+	uint8_t find_index(uint8_t letter);
+	std::vector<uint8_t> _wiring;
+	std::vector<uint8_t> _start;
+	size_t _size;
+};
+
+
+Rotor::Rotor(const std::vector<uint8_t>& wiring): _wiring(wiring), _start(_wiring) {	
+	this->_size = this->_wiring.size();
+}
+
+uint8_t Rotor::encrypt_right(uint8_t symbol) {
+	return _wiring[symbol];
+}
+
+uint8_t Rotor::encrypt_left(uint8_t symbol) {
+	return find_index(symbol);
+}
+
+uint8_t Rotor::find_index(uint8_t letter) {
+	for (int i = 0; i < _size; i++)
+	{
+		if (_wiring[i] == letter)
+		{
+			return i;
+		}
+	}
+		
+	return -1;
+}
+
+void Rotor::reset_position() {
+	_wiring = _start;
+}
+
+void Rotor::rotate()
+{
+	uint8_t temp = _wiring[_size - 1];
+	for (int i = _size - 1; i > 0; --i) {
+		_wiring[i] = _wiring[i - 1];
+	}
+	_wiring[0] = temp;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[label=lst:enigma:reflactor,caption=Класс енигмы]
+class Enigma {
+public:
+	Enigma();
+	Enigma(uint64_t size_rotor, uint8_t amount_rotors);
+	
+	void set_reflector(Reflector& reflector);
+	void set_commutator(Reflector& reflector);
+	void set_rotor(Rotor& rotor);
+	
+	size_t encrypt(FILE *fin, FILE *fout);
+	std::string encrypt(const std::string& message);
+	uint8_t encrypt(uint8_t symbol);
+	void reset_rotors();
+	
+void printf_config();
+	private:
+	void print_pair(uint8_t s1, uint8_t s2);
+	char normalize_sym(uint8_t symbol);
+	int _counter;
+	int _size_rotor;
+	uint8_t _amount_rotors;
+	std::unique_ptr<Reflector> _reflector;
+	std::unique_ptr<Reflector> _commutator;
+	std::vector<std::shared_ptr<Rotor>> _rotors;
+};
+
+Enigma::Enigma(uint64_t size_rotor, uint8_t amount_rotors) {
+	this->_counter = 0;
+	this->_size_rotor = (int) size_rotor;
+	this->_amount_rotors = amount_rotors;
+}
+
+void Enigma::set_reflector(Reflector &reflector) {
+	_reflector = std::make_unique<Reflector>(reflector);
+}
+
+void Enigma::set_commutator(Reflector &reflector) {
+	_commutator = std::make_unique<Reflector>(reflector);
+}
+
+void Enigma::set_rotor(Rotor &rotor) {
+	_rotors.push_back(std::make_shared<Rotor>(rotor));
+}
+
+uint8_t Enigma::encrypt(uint8_t symbol)
+{
+	int rotor_queue = 0;
+	uint8_t new_symbol = symbol;
+	
+	new_symbol = _commutator->reflect(new_symbol);
+	
+	for (int i = 0; i < _amount_rotors; i++)
+	{
+		new_symbol = _rotors[i]->encrypt_left(new_symbol);
+	}
+	
+	new_symbol = _reflector->reflect(new_symbol);
+	
+
+	for (int i = _amount_rotors - 1; i >= 0; i--)
+	{
+		new_symbol = _rotors[i]->encrypt_right(new_symbol);
+	}
+	
+	new_symbol = _commutator->reflect(new_symbol);
+	
+	rotor_queue = 1;
+	this->_counter += 1;
+	for (int i = 0; i < _amount_rotors; ++i) {
+		if (_counter % rotor_queue == 0) {
+			_rotors[i]->rotate();
+		}
+		rotor_queue *= _size_rotor;
+	}
+	
+	return new_symbol;
+}
+
+void Enigma::reset_rotors() {
+	for (auto rotor: _rotors)
+	{
+		rotor->reset_position();
+	}
+}
+
+std::string Enigma::encrypt(const std::string& message) {
+	std::string new_message;
+	for (char symbol: message)
+	{
+		new_message += static_cast<char>(encrypt(symbol));;
+	}
+	
+	return new_message;
+}
+
+size_t Enigma::encrypt(FILE *fin, FILE *fout) {
+	if (fin == nullptr || fout == nullptr)
+	{
+		return -1;
+	}
+	
+	std::wstring message;
+	
+	char code;
+	fseek(fin , 0, SEEK_END);
+	size_t input_size = ftell(fin);
+	fseek(fin , 0, SEEK_SET);
+	size_t size = 0;
+
+	
+	while (size < input_size) {
+		size += fread(&code, sizeof(char), 1, fin);
+		fseek(fin , SEEK_SET, SEEK_CUR);
+		
+		uint8_t newcode = this->encrypt(code);
+		
+		fwrite(&newcode, sizeof(char), 1, fout);
+	}
+	
+	return size;
+}
+\end{lstlisting}
+
+\section{Тестирование}
+
+\begin{table}[ht!]
+	\begin{center}
+		\captionsetup{justification=raggedright,singlelinecheck=off}
+		\caption{\label{tbl:functional_test} Функциональные тесты}
+		\begin{tabular}{|c|c|c|}
+			\hline
+			Входная строка & Выходная строка \\ 
+			\hline
+			HeLlo WorLd & >>кйД;пољ6 \\
+			ABOBA  & ґµ;№M\\
+			ґµ;№M  & ABOBA \\
+			A & ґ\\
+			<<>>  & <<>>\\
+			\hline
+		\end{tabular}
+	\end{center}
+\end{table}

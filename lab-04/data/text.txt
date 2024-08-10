@@ -1,0 +1,12 @@
+ECB should not be used if encrypting more than one block of data with the same key.
+
+CBC, OFB and CFB are similar, however OFB/CFB is better because you only need encryption and not decryption, which can save code space.
+
+CTR is used if you want good parallelization (ie. speed), instead of CBC/OFB/CFB.
+
+XTS mode is the most common if you are encoding a random accessible data (like a hard disk or RAM).
+
+OCB is by far the best mode, as it allows encryption and authentication in a single pass. However there are patents on it in USA.
+
+AES, или Advanced Encryption Standard, - это алгоритм шифрования с симметричным ключом. Это одно из самых универсальных и наиболее любимых технических решений в сфере криптографии.
+В основе AES лежит блочный шифр, который использует 128-битный размер блока и 128, 192 или 256-битные ключи для шифрования данных. AES256 - это версия стандарта с 256-битными ключами.

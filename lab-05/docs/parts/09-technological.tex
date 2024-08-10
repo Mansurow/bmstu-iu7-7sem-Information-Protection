@@ -1,0 +1,101 @@
+\chapter{Технологическая часть}
+
+\section{Средства реализации}
+
+Для программной реализации шифровальной машины был выбран язык C++ \cite{cpp}.
+В данном языке есть все требующиеся инструменты для данной лабораторной работы.
+В качестве среды разработки была выбрана среда CLion \cite{clion}.
+
+\section{Реализация алгоритма}
+
+\begin{lstlisting}[caption=Алгоритм сжатия файла]
+	void decompress(const char* filename, const ll Filesize)
+	{
+		const std::string fl = filename;
+		FILE* iptr = fopen(std::string("../data/" + fl).c_str(), "rb");
+		FILE* optr = fopen(std::string("../data/d_" + fl).c_str(), "wb");
+		
+		if (iptr == NULL)
+		{
+			perror("Error: File not found");
+			exit(-1);
+		}
+		
+		auto [padding, headersize] = decode_header(iptr);
+		store_huffman_value();
+		print_tree();
+		
+		byte ch;
+		char counter = 7;
+		ll size = 0;
+		const ll filesize = Filesize - headersize;
+		Node* traverse = root;
+		ch = fgetc(iptr);
+		while (size != filesize)
+		{
+			while (counter >= 0)
+			{
+				traverse = ch & (1 << counter) ? traverse->right : traverse->left;
+				--counter;
+				if (!traverse->left && !traverse->right) {
+					fputc(traverse->character, optr);
+					if (size == filesize - 1 && padding == counter + 1) {
+						break;
+					}
+					traverse = root;
+				}
+			}
+			++size;
+			counter = 7;
+			ch = fgetc(iptr);
+		}
+		fclose(iptr);
+		fclose(optr);
+	}
+\end{lstlisting}
+
+\begin{lstlisting}[caption=Алгоритм разжатия файла]
+void decompress(const char* filename, const ll Filesize)
+{
+	const std::string fl = filename;
+	FILE* iptr = fopen(std::string("../data/" + fl).c_str(), "rb");
+	FILE* optr = fopen(std::string("../data/d_" + fl).c_str(), "wb");
+	
+	if (iptr == NULL)
+	{
+		perror("Error: File not found");
+		exit(-1);
+	}
+	
+	auto [padding, headersize] = decode_header(iptr);
+	store_huffman_value();
+	print_tree();
+	
+	byte ch;
+	char counter = 7;
+	ll size = 0;
+	const ll filesize = Filesize - headersize;
+	Node* traverse = root;
+	ch = fgetc(iptr);
+	while (size != filesize)
+	{
+		while (counter >= 0)
+		{
+			traverse = ch & (1 << counter) ? traverse->right : traverse->left;
+			--counter;
+			if (!traverse->left && !traverse->right) {
+				fputc(traverse->character, optr);
+				if (size == filesize - 1 && padding == counter + 1) {
+					break;
+				}
+				traverse = root;
+			}
+		}
+		++size;
+		counter = 7;
+		ch = fgetc(iptr);
+	}
+	fclose(iptr);
+	fclose(optr);
+}
+\end{lstlisting}

@@ -1,0 +1,96 @@
+\chapter{Технологическая часть}
+
+\section{Средства реализации}
+
+Для программной реализации шифровальной машины был выбран язык C++ \cite{cpp}.
+В данном языке есть все требующиеся инструменты для данной лабораторной работы.
+В качестве среды разработки была выбрана среда CLion \cite{clion}.
+
+\section{Реализация алгоритма}
+
+\begin{lstlisting}[label=lst:ecb,caption=Класс реализации режима ECB]
+class ECB {
+public:
+	ECB() {};
+	
+	string cypher(string message, string key, bool decrypt=false);
+	vector<char> cypher(vector<char> message, vector<char> key, bool decrypt=false);
+	
+protected:
+	bitset<64> vchar_to_bitset64(vector<char> input);
+	
+	vector<char> bitset64_to_vchar(bitset<64> input);
+	
+	DES _des;
+};
+\end{lstlisting}
+
+
+\clearpage
+
+\begin{lstlisting}[label=lst:ecb,caption=Реализация метода шифрования и дешифрования 3DES в режиме ECB]
+ector<char> ECB::cypher(vector<char> input, vector<char> key, bool decypher)
+{
+	vector<char> buffer = {};
+	vector<char> result = {};
+	int last_cnt = 0;
+	
+	if (decypher) {
+		last_cnt = input.back();
+		input.pop_back();
+	}
+
+	auto key_b = vchar_to_bitset64(key);
+	
+	for (auto sym : input) {
+		if (buffer.size() < 8) {
+			buffer.push_back(sym);
+		}
+		
+		if (buffer.size() == 8) {
+			auto buf_b = vchar_to_bitset64(buffer);
+			auto tmp_b_1 = _des.process_block(buf_b, key_b, decypher);
+			auto tmp_b_2 = _des.process_block(tmp_b_1, key_b, decypher);
+			auto tmp_b_3 = _des.process_block(tmp_b_2, key_b, decypher);
+			auto tmp_res = bitset64_to_vchar(tmp_b_3);
+			
+			result.insert(result.end(), tmp_res.begin(), tmp_res.end());
+			
+			buffer.clear();
+		}
+	}
+	
+	if (!decypher)
+	result.push_back((char)last_cnt);
+	
+	if (decypher) {
+		for (int i = 0; i < last_cnt; i++) {
+			result.pop_back();
+		}
+	}
+	
+	return result;
+}
+\end{lstlisting}
+
+\begin{lstlisting}[label=lst:process-block,caption=Реализация алгоритма DES]
+bitset<64> DES::process_block(bitset<64> value, bitset<64> key, bool decypher)
+{
+	auto keys = generate_keys(key, decypher);
+	
+	auto round_val = IP_f(value);
+	
+	for (auto rkey : keys) {
+		round_val = wround(round_val, rkey);
+	}
+	
+	auto final_val = FP_f(round_val);
+	
+	return final_val;
+}
+\end{lstlisting}
+
+
+\section*{Вывод}
+
+В данном разделе были рассмотрены средства реализации, а также представлены листинги реализации шифровального алгоритма DES и режима работы ECB.
